@@ -175,7 +175,7 @@ const CameeEconomySimulator = () => {
   };
 
   const handleSendMessage = () => {
-    const messageCost = 90;
+    const messageCost = 50;
     if (playerA.crystals >= messageCost) {
       const usdValue = messageCost * crystalRate;
       const statusGainA = usdValue * 1.0;
@@ -207,7 +207,7 @@ const CameeEconomySimulator = () => {
   };
 
   const handleStartCall = () => {
-    const callCost = 40 * callMinutes;
+    const callCost = 80 * callMinutes;
     if (playerA.crystals >= callCost) {
       const usdValue = callCost * crystalRate;
       const statusGainA = usdValue * 1.0;
