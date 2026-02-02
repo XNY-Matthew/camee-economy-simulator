@@ -41,6 +41,8 @@ const CameeEconomySimulator = () => {
     progress: 0,
   });
 
+  const [transactions, setTransactions] = useState([]);
+
   // Crystal packs
   const crystalPacks = [
     { crystals: 130, usd: 1.99 },
@@ -119,6 +121,20 @@ const CameeEconomySimulator = () => {
     setFlowAnimation({ running: false, progress: 100 });
   };
 
+  // Log transaction
+  const logTransaction = (type, details) => {
+    const timestamp = new Date().toLocaleTimeString();
+    setTransactions((prev) => [
+      {
+        id: Date.now(),
+        timestamp,
+        type,
+        ...details,
+      },
+      ...prev,
+    ]);
+  };
+
   // Actions
   const handleBuyPack = (pack) => {
     if (playerA.usdBalance >= pack.usd) {
@@ -126,6 +142,12 @@ const CameeEconomySimulator = () => {
         ...playerA,
         crystals: playerA.crystals + pack.crystals,
         usdBalance: playerA.usdBalance - pack.usd,
+      });
+
+      logTransaction('BUY_PACK', {
+        crystals: pack.crystals,
+        usd: pack.usd,
+        newBalance: playerA.crystals + pack.crystals,
       });
     }
   };
@@ -142,6 +164,12 @@ const CameeEconomySimulator = () => {
         statusPoints: playerA.statusPoints + statusGain,
         totalSpent: playerA.totalSpent + usdValue,
       });
+
+      logTransaction('USE_FILTER', {
+        crystals: filterCost,
+        usd: usdValue.toFixed(4),
+        statusGainA: statusGain.toFixed(2),
+      });
     }
   };
 
@@ -156,6 +184,12 @@ const CameeEconomySimulator = () => {
         crystals: playerA.crystals - messageCost,
         statusPoints: playerA.statusPoints + statusGain,
         totalSpent: playerA.totalSpent + usdValue,
+      });
+
+      logTransaction('SEND_MESSAGE', {
+        crystals: messageCost,
+        usd: usdValue.toFixed(4),
+        statusGainA: statusGain.toFixed(2),
       });
     }
   };
@@ -179,6 +213,15 @@ const CameeEconomySimulator = () => {
         statusPoints: playerB.statusPoints + statusGainB,
         ratingPoints: playerB.ratingPoints + ratingGainB,
         totalEarned: playerB.totalEarned + usdValue,
+      });
+
+      logTransaction('SEND_STANDARD_GIFT', {
+        giftId: gift.id,
+        crystals: gift.crystals,
+        usd: usdValue.toFixed(4),
+        statusGainA: statusGainA.toFixed(2),
+        ratingGainB: ratingGainB.toFixed(2),
+        statusGainB: statusGainB.toFixed(2),
       });
     }
   };
@@ -211,6 +254,16 @@ const CameeEconomySimulator = () => {
           ...limitedGifts[giftId],
           remaining: limitedGifts[giftId].remaining - 1,
         },
+      });
+
+      logTransaction('SEND_LIMITED_GIFT', {
+        limitedGiftId: giftId,
+        crystals: gift.crystals,
+        usd: usdValue.toFixed(4),
+        statusGainA: statusGainA.toFixed(2),
+        ratingGainB: ratingGainB.toFixed(2),
+        statusGainB: statusGainB.toFixed(2),
+        remaining: limitedGifts[giftId].remaining - 1,
       });
     }
   };
@@ -449,6 +502,85 @@ const CameeEconomySimulator = () => {
                   <p className="text-xs md:text-sm text-green-400 mt-1">Bonus: +{economy.payoutPercentage - 40}% this week</p>
                 </div>
               </div>
+            </div>
+
+            {/* Transaction History */}
+            <div className="bg-white/10 backdrop-blur border border-white/20 rounded-lg p-4 md:p-6">
+              <h2 className="text-xl md:text-2xl font-bold text-blue-300 mb-4">📊 Transaction History</h2>
+
+              {transactions.length === 0 ? (
+                <p className="text-gray-400 text-center py-8">No transactions yet. Make some actions!</p>
+              ) : (
+                <div className="space-y-2 max-h-96 overflow-y-auto">
+                  {transactions.map((tx) => (
+                    <div key={tx.id} className="bg-black/30 p-3 rounded border border-white/10">
+                      <div className="flex justify-between items-start mb-2">
+                        <span className="text-xs text-gray-400">{tx.timestamp}</span>
+                        <span className="text-xs font-semibold px-2 py-1 rounded bg-white/20">
+                          {tx.type === 'BUY_PACK' && '💰 Buy Pack'}
+                          {tx.type === 'USE_FILTER' && '🎯 Filter'}
+                          {tx.type === 'SEND_MESSAGE' && '📝 Message'}
+                          {tx.type === 'SEND_STANDARD_GIFT' && `🎁 Gift #${tx.giftId}`}
+                          {tx.type === 'SEND_LIMITED_GIFT' && `💎 Limited #${tx.limitedGiftId}`}
+                        </span>
+                      </div>
+
+                      {tx.type === 'BUY_PACK' && (
+                        <div className="text-xs text-gray-300 space-y-1">
+                          <p>Spent: <span className="text-green-400 font-semibold">${tx.usd}</span></p>
+                          <p>Gained: <span className="text-cyan-400 font-semibold">{tx.crystals} 💎</span></p>
+                          <p>New balance: <span className="text-cyan-400 font-semibold">{tx.newBalance} 💎</span></p>
+                        </div>
+                      )}
+
+                      {tx.type === 'USE_FILTER' && (
+                        <div className="text-xs text-gray-300 space-y-1">
+                          <p>Cost: <span className="text-red-400 font-semibold">{tx.crystals} 💎</span></p>
+                          <p>Value: <span className="text-yellow-400 font-semibold">${tx.usd}</span></p>
+                          <p>Player A Status +<span className="text-yellow-400 font-semibold">{tx.statusGainA}</span></p>
+                        </div>
+                      )}
+
+                      {tx.type === 'SEND_MESSAGE' && (
+                        <div className="text-xs text-gray-300 space-y-1">
+                          <p>Cost: <span className="text-red-400 font-semibold">{tx.crystals} 💎</span></p>
+                          <p>Value: <span className="text-yellow-400 font-semibold">${tx.usd}</span></p>
+                          <p>Player A Status +<span className="text-yellow-400 font-semibold">{tx.statusGainA}</span></p>
+                        </div>
+                      )}
+
+                      {(tx.type === 'SEND_STANDARD_GIFT' || tx.type === 'SEND_LIMITED_GIFT') && (
+                        <div className="text-xs text-gray-300 space-y-1">
+                          <p>Cost: <span className="text-red-400 font-semibold">{tx.crystals} 💎</span></p>
+                          <p>Value: <span className="text-yellow-400 font-semibold">${tx.usd}</span></p>
+                          <div className="grid grid-cols-2 gap-2 mt-2">
+                            <div className="bg-purple-500/20 p-2 rounded">
+                              <p className="text-purple-300 font-semibold">Player A</p>
+                              <p className="text-yellow-400">Status +{tx.statusGainA}</p>
+                            </div>
+                            <div className="bg-green-500/20 p-2 rounded">
+                              <p className="text-green-300 font-semibold">Player B</p>
+                              <p className="text-green-400">Rating +{tx.ratingGainB}</p>
+                              <p className="text-yellow-400">Status +{tx.statusGainB}</p>
+                            </div>
+                          </div>
+                          {tx.type === 'SEND_LIMITED_GIFT' && (
+                            <p className="text-rose-400 mt-2">Limited remaining: {tx.remaining}/10</p>
+                          )}
+                        </div>
+                      )}
+                    </div>
+                  ))}
+                </div>
+              )}
+
+              <button
+                onClick={() => setTransactions([])}
+                disabled={transactions.length === 0}
+                className="w-full mt-4 bg-white/10 hover:bg-white/20 disabled:opacity-50 text-gray-300 py-2 px-3 rounded text-xs font-semibold transition"
+              >
+                Clear History
+              </button>
             </div>
           </>
         )}
