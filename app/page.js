@@ -4,15 +4,18 @@ import { useState, useEffect } from 'react';
 import './globals.css';
 
 const CameeEconomySimulator = () => {
+  // Crystal rate constant
+  const CRYSTAL_TO_USD = 0.0073;
+
   // Game state
   const [playerA, setPlayerA] = useState({
-    crystals: 1000,
+    crystals: 0,
+    usdBalance: 1000, // Infinite USD for buying packs
     statusPoints: 0,
     totalSpent: 0,
   });
 
   const [playerB, setPlayerB] = useState({
-    crystals: 500,
     statusPoints: 0,
     ratingPoints: 0,
     totalEarned: 0,
@@ -20,78 +23,157 @@ const CameeEconomySimulator = () => {
     weeklyActivityPoints: 0,
   });
 
+  const [limitedGifts, setLimitedGifts] = useState({
+    1: { limit: 10, remaining: 10 },
+    2: { limit: 10, remaining: 10 },
+    3: { limit: 10, remaining: 10 },
+    4: { limit: 10, remaining: 10 },
+    5: { limit: 10, remaining: 10 },
+  });
+
   const [economy, setEconomy] = useState({
-    crystalToUSD: 0.0073,
-    statusPointMultiplier: 1.0, // For spend
-    ratingMultiplier: 0.4, // For earn
     payoutPercentage: 40,
   });
 
-  const [animation, setAnimation] = useState({
-    showTransfer: false,
-    transferAmount: 0,
-  });
-
-  // Gift packs
-  const giftPacks = [
-    { name: 'Tiny', crystals: 150, usd: 1.57 },
-    { name: 'Small', crystals: 300, usd: 3.13 },
-    { name: 'Medium', crystals: 1000, usd: 10.44 },
-    { name: 'Large', crystals: 2000, usd: 20.88 },
-    { name: 'Huge', crystals: 5000, usd: 52.19 },
+  // Pack prices from photo
+  const crystalPacks = [
+    { crystals: 130, usd: 1.99 },
+    { crystals: 530, usd: 6.99 },
+    { crystals: 850, usd: 10.99 },
+    { crystals: 2100, usd: 24.99 },
+    { crystals: 5750, usd: 64.99 },
+    { crystals: 9100, usd: 94.99 },
   ];
 
+  // Standard gifts
+  const standardGifts = [
+    { id: 1, crystals: 150 },
+    { id: 2, crystals: 300 },
+    { id: 3, crystals: 1000 },
+    { id: 4, crystals: 2000 },
+    { id: 5, crystals: 3000 },
+    { id: 6, crystals: 5000 },
+    { id: 7, crystals: 6000 },
+    { id: 8, crystals: 10000 },
+    { id: 9, crystals: 12000 },
+    { id: 10, crystals: 20000 },
+  ];
+
+  // Limited gifts
+  const limitedGiftsPrices = {
+    1: { crystals: 1500 },
+    2: { crystals: 4000 },
+    3: { crystals: 8500 },
+    4: { crystals: 25000 },
+    5: { crystals: 40000 },
+  };
+
+  // Actions
   const handleBuyPack = (pack) => {
-    if (playerA.crystals >= pack.crystals) {
-      const usdValue = pack.crystals * economy.crystalToUSD;
-      const newStatusPoints = playerA.statusPoints + usdValue * economy.statusPointMultiplier;
-      
+    if (playerA.usdBalance >= pack.usd) {
       setPlayerA({
-        crystals: playerA.crystals - pack.crystals,
-        statusPoints: newStatusPoints,
+        ...playerA,
+        crystals: playerA.crystals + pack.crystals,
+        usdBalance: playerA.usdBalance - pack.usd,
+      });
+    }
+  };
+
+  const handleUseFilter = () => {
+    const filterCost = 10; // gems
+    if (playerA.crystals >= filterCost) {
+      const usdValue = filterCost * CRYSTAL_TO_USD;
+      const statusGain = usdValue * 1.0; // 1 USD = 1 status point
+
+      setPlayerA({
+        ...playerA,
+        crystals: playerA.crystals - filterCost,
+        statusPoints: playerA.statusPoints + statusGain,
         totalSpent: playerA.totalSpent + usdValue,
       });
     }
   };
 
-  const handleSendGift = (crystalAmount) => {
-    if (playerA.crystals >= crystalAmount) {
-      const usdValue = crystalAmount * economy.crystalToUSD;
-      const ratingGain = usdValue * economy.ratingMultiplier;
-      const statusGainA = usdValue * economy.statusPointMultiplier;
-      
-      setAnimation({ showTransfer: true, transferAmount: crystalAmount });
-      
-      setTimeout(() => {
-        setPlayerA({
-          ...playerA,
-          crystals: playerA.crystals - crystalAmount,
-          statusPoints: playerA.statusPoints + statusGainA,
-          totalSpent: playerA.totalSpent + usdValue,
-        });
-        
-        setPlayerB({
-          ...playerB,
-          crystals: playerB.crystals + crystalAmount,
-          ratingPoints: playerB.ratingPoints + ratingGain,
-          totalEarned: playerB.totalEarned + usdValue,
-        });
-        
-        setAnimation({ showTransfer: false, transferAmount: 0 });
-      }, 500);
+  const handleSendMessage = () => {
+    const messageCost = 90; // gems
+    if (playerA.crystals >= messageCost) {
+      const usdValue = messageCost * CRYSTAL_TO_USD;
+      const statusGain = usdValue * 1.0;
+
+      setPlayerA({
+        ...playerA,
+        crystals: playerA.crystals - messageCost,
+        statusPoints: playerA.statusPoints + statusGain,
+        totalSpent: playerA.totalSpent + usdValue,
+      });
+    }
+  };
+
+  const handleSendStandardGift = (gift) => {
+    if (playerA.crystals >= gift.crystals) {
+      const usdValue = gift.crystals * CRYSTAL_TO_USD;
+      const statusGainA = usdValue * 1.0; // Spend
+      const ratingGainB = usdValue * 0.4; // Earn
+      const statusGainB = ratingGainB; // Same as rating gain
+
+      setPlayerA({
+        ...playerA,
+        crystals: playerA.crystals - gift.crystals,
+        statusPoints: playerA.statusPoints + statusGainA,
+        totalSpent: playerA.totalSpent + usdValue,
+      });
+
+      setPlayerB({
+        ...playerB,
+        statusPoints: playerB.statusPoints + statusGainB,
+        ratingPoints: playerB.ratingPoints + ratingGainB,
+        totalEarned: playerB.totalEarned + usdValue,
+      });
+    }
+  };
+
+  const handleSendLimitedGift = (giftId) => {
+    if (limitedGifts[giftId].remaining > 0 && playerA.crystals >= limitedGiftsPrices[giftId].crystals) {
+      const gift = limitedGiftsPrices[giftId];
+      const usdValue = gift.crystals * CRYSTAL_TO_USD;
+      const statusGainA = usdValue * 1.0;
+      const ratingGainB = usdValue * 0.4;
+      const statusGainB = ratingGainB;
+
+      setPlayerA({
+        ...playerA,
+        crystals: playerA.crystals - gift.crystals,
+        statusPoints: playerA.statusPoints + statusGainA,
+        totalSpent: playerA.totalSpent + usdValue,
+      });
+
+      setPlayerB({
+        ...playerB,
+        statusPoints: playerB.statusPoints + statusGainB,
+        ratingPoints: playerB.ratingPoints + ratingGainB,
+        totalEarned: playerB.totalEarned + usdValue,
+      });
+
+      setLimitedGifts({
+        ...limitedGifts,
+        [giftId]: {
+          ...limitedGifts[giftId],
+          remaining: limitedGifts[giftId].remaining - 1,
+        },
+      });
     }
   };
 
   const handleActivityChange = (minutes) => {
     const activityPoints = Math.floor(minutes / 90) * 2;
     const newPayoutPercentage = Math.min(40 + activityPoints, 60);
-    
+
     setPlayerB({
       ...playerB,
       weeklyActivityMinutes: minutes,
       weeklyActivityPoints: activityPoints,
     });
-    
+
     setEconomy({
       ...economy,
       payoutPercentage: newPayoutPercentage,
@@ -102,24 +184,28 @@ const CameeEconomySimulator = () => {
   const formatCrystals = (value) => `${Math.floor(value)} 💎`;
 
   return (
-    <div className="bg-gradient-to-br from-purple-900 via-pink-900 to-blue-900 min-h-screen p-8">
-      <div className="max-w-7xl mx-auto">
+    <div className="bg-gradient-to-br from-purple-900 via-pink-900 to-blue-900 min-h-screen p-6">
+      <div className="max-w-8xl mx-auto">
         <h1 className="text-5xl font-bold text-white text-center mb-2">Camee Economy Simulator</h1>
-        <p className="text-gray-200 text-center mb-8">Interactive model of Status & Rating systems</p>
+        <p className="text-gray-200 text-center mb-8">1 Crystal = {formatUSD(CRYSTAL_TO_USD)}</p>
 
-        <div className="grid grid-cols-3 gap-8 mb-8">
+        <div className="grid grid-cols-3 gap-6 mb-8">
           {/* Player A - Spender */}
-          <div className="bg-white/10 backdrop-blur border border-white/20 rounded-lg p-6">
-            <h2 className="text-2xl font-bold text-cyan-300 mb-4">👤 Player A (Spender)</h2>
-            
+          <div className="bg-white/10 backdrop-blur border border-white/20 rounded-lg p-6 max-h-screen overflow-y-auto">
+            <h2 className="text-2xl font-bold text-cyan-300 mb-4">👤 Player A</h2>
+
             <div className="space-y-3 mb-6">
+              <div className="bg-black/30 p-3 rounded">
+                <p className="text-gray-300 text-sm">USD Balance</p>
+                <p className="text-2xl font-bold text-green-400">{formatUSD(playerA.usdBalance)}</p>
+              </div>
               <div className="bg-black/30 p-3 rounded">
                 <p className="text-gray-300 text-sm">Crystals</p>
                 <p className="text-2xl font-bold text-cyan-400">{formatCrystals(playerA.crystals)}</p>
               </div>
               <div className="bg-black/30 p-3 rounded">
-                <p className="text-gray-300 text-sm">Status Points</p>
-                <p className="text-2xl font-bold text-yellow-400">{Math.floor(playerA.statusPoints)}</p>
+                <p className="text-gray-300 text-sm">Status Points (Spend)</p>
+                <p className="text-2xl font-bold text-yellow-400">{playerA.statusPoints.toFixed(2)}</p>
               </div>
               <div className="bg-black/30 p-3 rounded">
                 <p className="text-gray-300 text-sm">Total Spent</p>
@@ -127,61 +213,77 @@ const CameeEconomySimulator = () => {
               </div>
             </div>
 
-            <h3 className="text-sm font-semibold text-white mb-3">Gift Packs</h3>
+            <h3 className="text-sm font-semibold text-white mb-3">💰 Buy Crystal Packs</h3>
             <div className="space-y-2">
-              {giftPacks.map((pack, i) => (
+              {crystalPacks.map((pack, i) => (
                 <button
                   key={i}
                   onClick={() => handleBuyPack(pack)}
-                  disabled={playerA.crystals < pack.crystals}
-                  className="w-full bg-gradient-to-r from-purple-500 to-pink-500 hover:from-purple-600 hover:to-pink-600 disabled:opacity-50 disabled:cursor-not-allowed text-white py-2 px-3 rounded text-sm font-semibold transition"
+                  disabled={playerA.usdBalance < pack.usd}
+                  className="w-full bg-gradient-to-r from-green-500 to-emerald-500 hover:from-green-600 hover:to-emerald-600 disabled:opacity-50 disabled:cursor-not-allowed text-white py-2 px-3 rounded text-sm font-semibold transition"
                 >
-                  {pack.name}: {formatCrystals(pack.crystals)} ({formatUSD(pack.usd)})
+                  {formatCrystals(pack.crystals)} → {formatUSD(pack.usd)}
                 </button>
               ))}
             </div>
 
-            <h3 className="text-sm font-semibold text-white mb-3 mt-6">Send Gift</h3>
-            <input
-              type="number"
-              min="10"
-              max={playerA.crystals}
-              defaultValue="500"
-              id="giftAmount"
-              className="w-full bg-black/30 border border-white/20 text-white px-3 py-2 rounded mb-2"
-              placeholder="Crystals to send"
-            />
-            <button
-              onClick={() => handleSendGift(parseInt(document.getElementById('giftAmount').value))}
-              className="w-full bg-gradient-to-r from-cyan-500 to-blue-500 hover:from-cyan-600 hover:to-blue-600 text-white py-2 px-3 rounded font-semibold transition"
-            >
-              Send Gift →
-            </button>
+            <h3 className="text-sm font-semibold text-white mb-3 mt-6">🎯 Quick Actions</h3>
+            <div className="space-y-2">
+              <button
+                onClick={handleUseFilter}
+                disabled={playerA.crystals < 10}
+                className="w-full bg-gradient-to-r from-blue-500 to-cyan-500 hover:from-blue-600 hover:to-cyan-600 disabled:opacity-50 text-white py-2 px-3 rounded text-sm font-semibold transition"
+              >
+                Use Filter (10 💎)
+              </button>
+              <button
+                onClick={handleSendMessage}
+                disabled={playerA.crystals < 90}
+                className="w-full bg-gradient-to-r from-purple-500 to-pink-500 hover:from-purple-600 hover:to-pink-600 disabled:opacity-50 text-white py-2 px-3 rounded text-sm font-semibold transition"
+              >
+                Send Message (90 💎)
+              </button>
+            </div>
+
+            <h3 className="text-sm font-semibold text-white mb-3 mt-6">🎁 Standard Gifts</h3>
+            <div className="space-y-2">
+              {standardGifts.map((gift) => (
+                <button
+                  key={gift.id}
+                  onClick={() => handleSendStandardGift(gift)}
+                  disabled={playerA.crystals < gift.crystals}
+                  className="w-full bg-gradient-to-r from-yellow-500 to-orange-500 hover:from-yellow-600 hover:to-orange-600 disabled:opacity-50 text-white py-2 px-2 rounded text-xs font-semibold transition"
+                >
+                  Gift #{gift.id}: {formatCrystals(gift.crystals)}
+                </button>
+              ))}
+            </div>
+
+            <h3 className="text-sm font-semibold text-white mb-3 mt-6">💎 Limited Gifts</h3>
+            <div className="space-y-2">
+              {Object.entries(limitedGiftsPrices).map(([id, gift]) => (
+                <button
+                  key={id}
+                  onClick={() => handleSendLimitedGift(parseInt(id))}
+                  disabled={playerA.crystals < gift.crystals || limitedGifts[id].remaining === 0}
+                  className="w-full bg-gradient-to-r from-red-500 to-rose-500 hover:from-red-600 hover:to-rose-600 disabled:opacity-50 text-white py-2 px-2 rounded text-xs font-semibold transition relative"
+                >
+                  <div className="flex justify-between items-center">
+                    <span>Limited #{id}: {formatCrystals(gift.crystals)}</span>
+                    <span className="text-xs bg-black/50 px-2 py-1 rounded">
+                      {limitedGifts[id].remaining}/10
+                    </span>
+                  </div>
+                </button>
+              ))}
+            </div>
           </div>
 
           {/* Economy Dashboard */}
           <div className="bg-white/10 backdrop-blur border border-white/20 rounded-lg p-6">
-            <h2 className="text-2xl font-bold text-yellow-300 mb-4">⚙️ Economy Settings</h2>
-            
+            <h2 className="text-2xl font-bold text-yellow-300 mb-4">⚙️ Economy</h2>
+
             <div className="space-y-4">
-              <div className="bg-black/30 p-4 rounded">
-                <label className="text-sm text-gray-300 block mb-2">Crystal → USD Rate</label>
-                <input
-                  type="number"
-                  step="0.0001"
-                  value={economy.crystalToUSD}
-                  onChange={(e) => setEconomy({ ...economy, crystalToUSD: parseFloat(e.target.value) })}
-                  className="w-full bg-black/30 border border-white/20 text-white px-3 py-2 rounded"
-                />
-                <p className="text-xs text-gray-400 mt-1">1 crystal = {formatUSD(economy.crystalToUSD)}</p>
-              </div>
-
-              <div className="bg-black/30 p-4 rounded">
-                <label className="text-sm text-gray-300 block mb-2">Payout %</label>
-                <p className="text-2xl font-bold text-green-400">{economy.payoutPercentage}%</p>
-                <p className="text-xs text-gray-400 mt-1">Base 40% + Activity Bonus</p>
-              </div>
-
               <div className="bg-black/30 p-4 rounded">
                 <label className="text-sm text-gray-300 block mb-2">Weekly Activity Minutes</label>
                 <input
@@ -193,37 +295,48 @@ const CameeEconomySimulator = () => {
                   className="w-full"
                 />
                 <p className="text-sm text-white mt-2">{playerB.weeklyActivityMinutes} / 900 min</p>
-                <p className="text-xs text-yellow-400">Activity Points: {playerB.weeklyActivityPoints} / 20</p>
+              </div>
+
+              <div className="bg-black/30 p-4 rounded">
+                <label className="text-sm text-gray-300 block mb-2">Activity Points</label>
+                <p className="text-2xl font-bold text-yellow-400">{playerB.weeklyActivityPoints} / 20</p>
+              </div>
+
+              <div className="bg-black/30 p-4 rounded">
+                <label className="text-sm text-gray-300 block mb-2">Payout %</label>
+                <p className="text-2xl font-bold text-green-400">{economy.payoutPercentage}%</p>
+                <p className="text-xs text-gray-400 mt-1">Base 40% + Activity</p>
               </div>
 
               <div className="bg-gradient-to-r from-purple-500/20 to-pink-500/20 p-4 rounded border border-purple-500/30">
-                <p className="text-xs text-gray-300 mb-2">Status Calc:</p>
-                <p className="text-sm text-white">1 USD spent = 1 status point</p>
+                <p className="text-xs text-gray-300 mb-2">Status (Spend):</p>
+                <p className="text-sm text-white">1 USD = 1 point</p>
               </div>
 
               <div className="bg-gradient-to-r from-green-500/20 to-blue-500/20 p-4 rounded border border-green-500/30">
-                <p className="text-xs text-gray-300 mb-2">Rating Calc:</p>
-                <p className="text-sm text-white">1 USD earned = 0.4 rating points</p>
+                <p className="text-xs text-gray-300 mb-2">Rating (Earn):</p>
+                <p className="text-sm text-white">1 USD = 0.4 points</p>
+              </div>
+
+              <div className="bg-gradient-to-r from-amber-500/20 to-orange-500/20 p-4 rounded border border-amber-500/30">
+                <p className="text-xs text-gray-300 mb-2">Status (Earn):</p>
+                <p className="text-sm text-white">Same as Rating (0.4 per USD)</p>
               </div>
             </div>
           </div>
 
           {/* Player B - Receiver */}
           <div className="bg-white/10 backdrop-blur border border-white/20 rounded-lg p-6">
-            <h2 className="text-2xl font-bold text-green-300 mb-4">👥 Player B (Receiver)</h2>
-            
-            <div className="space-y-3 mb-6">
+            <h2 className="text-2xl font-bold text-green-300 mb-4">👥 Player B</h2>
+
+            <div className="space-y-3">
               <div className="bg-black/30 p-3 rounded">
-                <p className="text-gray-300 text-sm">Crystals Received</p>
-                <p className="text-2xl font-bold text-cyan-400">{formatCrystals(playerB.crystals)}</p>
-              </div>
-              <div className="bg-black/30 p-3 rounded">
-                <p className="text-gray-300 text-sm">Status Points</p>
-                <p className="text-2xl font-bold text-yellow-400">{Math.floor(playerB.statusPoints)}</p>
+                <p className="text-gray-300 text-sm">Status Points (Earn)</p>
+                <p className="text-2xl font-bold text-yellow-400">{playerB.statusPoints.toFixed(2)}</p>
               </div>
               <div className="bg-black/30 p-3 rounded">
                 <p className="text-gray-300 text-sm">Rating Points</p>
-                <p className="text-2xl font-bold text-green-400">{Math.floor(playerB.ratingPoints)}</p>
+                <p className="text-2xl font-bold text-green-400">{playerB.ratingPoints.toFixed(2)}</p>
               </div>
               <div className="bg-black/30 p-3 rounded">
                 <p className="text-gray-300 text-sm">Total Earned (USD)</p>
@@ -231,27 +344,20 @@ const CameeEconomySimulator = () => {
               </div>
               <div className="bg-black/30 p-3 rounded">
                 <p className="text-gray-300 text-sm">Available Payout</p>
-                <p className="text-xl font-bold text-green-400">
+                <p className="text-2xl font-bold text-green-400">
                   {formatUSD(playerB.totalEarned * (economy.payoutPercentage / 100))}
                 </p>
                 <p className="text-xs text-gray-400 mt-1">@ {economy.payoutPercentage}% payout</p>
               </div>
             </div>
 
-            <div className="text-center text-gray-400 text-xs">
-              <p>Activity: {playerB.weeklyActivityPoints} / 20 points</p>
-              <p className="mt-1 text-green-400">+{economy.payoutPercentage - 40}% bonus this week</p>
+            <div className="mt-6 bg-gradient-to-r from-green-500/20 to-blue-500/20 p-4 rounded border border-green-500/30">
+              <p className="text-xs text-gray-300 mb-2">Weekly Status</p>
+              <p className="text-sm text-white">Activity: {playerB.weeklyActivityPoints} / 20 points</p>
+              <p className="text-sm text-green-400 mt-1">Bonus: +{economy.payoutPercentage - 40}% this week</p>
             </div>
           </div>
         </div>
-
-        {/* Animation */}
-        {animation.showTransfer && (
-          <div className="fixed inset-0 pointer-events-none flex items-center justify-center">
-            <div className="animate-bounce text-6xl">💎</div>
-            <p className="absolute text-white font-bold text-lg">{formatCrystals(animation.transferAmount)}</p>
-          </div>
-        )}
       </div>
     </div>
   );
