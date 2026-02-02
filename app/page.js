@@ -42,6 +42,7 @@ const CameeEconomySimulator = () => {
   });
 
   const [transactions, setTransactions] = useState([]);
+  const [callMinutes, setCallMinutes] = useState(1);
 
   // Crystal packs
   const crystalPacks = [
@@ -177,19 +178,63 @@ const CameeEconomySimulator = () => {
     const messageCost = 90;
     if (playerA.crystals >= messageCost) {
       const usdValue = messageCost * crystalRate;
-      const statusGain = usdValue * 1.0;
+      const statusGainA = usdValue * 1.0;
+      const ratingGainB = usdValue * 0.4;
+      const statusGainB = ratingGainB;
 
       setPlayerA({
         ...playerA,
         crystals: playerA.crystals - messageCost,
-        statusPoints: playerA.statusPoints + statusGain,
+        statusPoints: playerA.statusPoints + statusGainA,
         totalSpent: playerA.totalSpent + usdValue,
+      });
+
+      setPlayerB({
+        ...playerB,
+        statusPoints: playerB.statusPoints + statusGainB,
+        ratingPoints: playerB.ratingPoints + ratingGainB,
+        totalEarned: playerB.totalEarned + usdValue,
       });
 
       logTransaction('SEND_MESSAGE', {
         crystals: messageCost,
         usd: usdValue.toFixed(4),
-        statusGainA: statusGain.toFixed(2),
+        statusGainA: statusGainA.toFixed(2),
+        ratingGainB: ratingGainB.toFixed(2),
+        statusGainB: statusGainB.toFixed(2),
+      });
+    }
+  };
+
+  const handleStartCall = () => {
+    const callCost = 40 * callMinutes;
+    if (playerA.crystals >= callCost) {
+      const usdValue = callCost * crystalRate;
+      const statusGainA = usdValue * 1.0;
+      const ratingGainB = usdValue * 0.4;
+      const statusGainB = ratingGainB;
+
+      setPlayerA({
+        ...playerA,
+        crystals: playerA.crystals - callCost,
+        statusPoints: playerA.statusPoints + statusGainA,
+        totalSpent: playerA.totalSpent + usdValue,
+      });
+
+      setPlayerB({
+        ...playerB,
+        statusPoints: playerB.statusPoints + statusGainB,
+        ratingPoints: playerB.ratingPoints + ratingGainB,
+        totalEarned: playerB.totalEarned + usdValue,
+      });
+
+      logTransaction('START_CALL', {
+        minutes: callMinutes,
+        crystals: callCost,
+        usd: usdValue.toFixed(4),
+        statusGainA: statusGainA.toFixed(2),
+        ratingGainB: ratingGainB.toFixed(2),
+        statusGainB: statusGainB.toFixed(2),
       });
     }
   };
@@ -390,6 +435,27 @@ const CameeEconomySimulator = () => {
                   </button>
                 </div>
 
+                <h3 className="text-xs md:text-sm font-semibold text-white mb-2 mt-4">☎️ Voice Call (40 💎/min)</h3>
+                <div className="bg-black/30 p-2 rounded mb-2">
+                  <label className="text-xs text-gray-300 block mb-1">Duration: {callMinutes} min</label>
+                  <input
+                    type="range"
+                    min="1"
+                    max="60"
+                    value={callMinutes}
+                    onChange={(e) => setCallMinutes(parseInt(e.target.value))}
+                    className="w-full"
+                  />
+                  <p className="text-xs text-gray-400 mt-1">Cost: {40 * callMinutes} 💎 (${(40 * callMinutes * crystalRate).toFixed(4)})</p>
+                </div>
+                <button
+                  onClick={handleStartCall}
+                  disabled={playerA.crystals < 40 * callMinutes}
+                  className="w-full bg-gradient-to-r from-green-500 to-teal-500 hover:from-green-600 hover:to-teal-600 disabled:opacity-50 text-white py-1 md:py-2 px-2 md:px-3 rounded text-xs md:text-sm font-semibold transition"
+                >
+                  Start Call ({40 * callMinutes} 💎)
+                </button>
+
                 <h3 className="text-xs md:text-sm font-semibold text-white mb-2 mt-4">🎁 Standard Gifts</h3>
                 <div className="grid grid-cols-2 gap-1 md:gap-2">
                   {standardGifts.map((gift) => (
@@ -520,6 +586,7 @@ const CameeEconomySimulator = () => {
                           {tx.type === 'BUY_PACK' && '💰 Buy Pack'}
                           {tx.type === 'USE_FILTER' && '🎯 Filter'}
                           {tx.type === 'SEND_MESSAGE' && '📝 Message'}
+                          {tx.type === 'START_CALL' && '☎️ Call'}
                           {tx.type === 'SEND_STANDARD_GIFT' && `🎁 Gift #${tx.giftId}`}
                           {tx.type === 'SEND_LIMITED_GIFT' && `💎 Limited #${tx.limitedGiftId}`}
                         </span>
@@ -545,7 +612,36 @@ const CameeEconomySimulator = () => {
                         <div className="text-xs text-gray-300 space-y-1">
                           <p>Cost: <span className="text-red-400 font-semibold">{tx.crystals} 💎</span></p>
                           <p>Value: <span className="text-yellow-400 font-semibold">${tx.usd}</span></p>
-                          <p>Player A Status +<span className="text-yellow-400 font-semibold">{tx.statusGainA}</span></p>
+                          <div className="grid grid-cols-2 gap-2 mt-2">
+                            <div className="bg-purple-500/20 p-2 rounded">
+                              <p className="text-purple-300 font-semibold">Player A</p>
+                              <p className="text-yellow-400">Status +{tx.statusGainA}</p>
+                            </div>
+                            <div className="bg-green-500/20 p-2 rounded">
+                              <p className="text-green-300 font-semibold">Player B</p>
+                              <p className="text-green-400">Rating +{tx.ratingGainB}</p>
+                              <p className="text-yellow-400">Status +{tx.statusGainB}</p>
+                            </div>
+                          </div>
+                        </div>
+                      )}
+
+                      {tx.type === 'START_CALL' && (
+                        <div className="text-xs text-gray-300 space-y-1">
+                          <p>Duration: <span className="text-blue-400 font-semibold">{tx.minutes} min</span></p>
+                          <p>Cost: <span className="text-red-400 font-semibold">{tx.crystals} 💎</span></p>
+                          <p>Value: <span className="text-yellow-400 font-semibold">${tx.usd}</span></p>
+                          <div className="grid grid-cols-2 gap-2 mt-2">
+                            <div className="bg-purple-500/20 p-2 rounded">
+                              <p className="text-purple-300 font-semibold">Player A</p>
+                              <p className="text-yellow-400">Status +{tx.statusGainA}</p>
+                            </div>
+                            <div className="bg-green-500/20 p-2 rounded">
+                              <p className="text-green-300 font-semibold">Player B</p>
+                              <p className="text-green-400">Rating +{tx.ratingGainB}</p>
+                              <p className="text-yellow-400">Status +{tx.statusGainB}</p>
+                            </div>
+                          </div>
                         </div>
                       )}
 
